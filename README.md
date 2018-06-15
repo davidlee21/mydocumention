@@ -41,7 +41,7 @@ from sklearn.feature_selection import SelectKBest
 from scipy.stats import pearsonr
 #选择K个最好的特征，返回选择特征后的数据
 #第一个参数为计算评估特征是否好的函数，该函数输入特征矩阵和目标向量，输出二元组（评分，P值）的数组，数组第i项为第i个特征的评分和P值。
-# 在此定义为计算相关系数
+#在此定义为相关系数。
 #参数k为选择的特征个数
 SelectKBest(lambda X, Y: array(map(lambda x:pearsonr(x, Y), X.T)).T, k=2).fit_transform(iris.data, iris.target)
 
@@ -79,9 +79,9 @@ from sklearn.linear_model import LogisticRegression
 SelectFromModel(LogisticRegression(penalty="l1", C=0.1)).fit_transform(iris.data, iris.target)
 
 #L1惩罚项降维的原理在于保留多个对目标值具有同等相关性的特征中的一个，所以没选到的特征不代表不重要。
-# 故，可结合L2惩罚项来优化。
+#故可结合L2惩罚项来优化。
 #具体操作为：若一个特征在L1中的权值为1，选择在L2中权值差别不大且在L1中权值为0的特征构成同类集合，
-# 将这一集合中的特征平分L1中的权值，故需要构建一个新的逻辑回归模型：
+#将这一集合中的特征平分L1中的权值，故需要构建一个新的逻辑回归模型：
 from sklearn.linear_model import LogisticRegression
 
 class LR(LogisticRegression):
@@ -89,7 +89,6 @@ class LR(LogisticRegression):
                  fit_intercept=True, intercept_scaling=1, class_weight=None,
                  random_state=None, solver='liblinear', max_iter=100,
                  multi_class='ovr', verbose=0, warm_start=False, n_jobs=1):
-
         #权值相近的阈值
         self.threshold = threshold
         LogisticRegression.__init__(self, penalty='l1', dual=dual, tol=tol, C=C,
@@ -97,35 +96,12 @@ class LR(LogisticRegression):
                  random_state=random_state, solver=solver, max_iter=max_iter,
                  multi_class=multi_class, verbose=verbose, warm_start=warm_start, n_jobs=n_jobs)
         #使用同样的参数创建L2逻辑回归
-        self.l2 = LogisticRegression(penalty='l2', dual=dual, tol=tol, C=C, fit_intercept=fit_intercept, intercept_scaling=intercept_scaling, class_weight = class_weight, random_state=random_state, solver=solver, max_iter=max_iter, multi_class=multi_class, verbose=verbose, warm_start=warm_start, n_jobs=n_jobs)
+        self.l2 = LogisticRegression(penalty='l2', dual=dual, tol=tol, C=C, fit_intercept=fit_intercept,
+                                      intercept_scaling=intercept_scaling, class_weight = class_weight,
+                                      random_state=random_state, solver=solver, max_iter=max_iter,
+                                      multi_class=multi_class, verbose=verbose, warm_start=warm_start, n_jobs=n_jobs)
 
-    def fit(self, X, y, sample_weight=None):
-        #训练L1逻辑回归
-        super(LR, self).fit(X, y, sample_weight=sample_weight)
-        self.coef_old_ = self.coef_.copy()
-        #训练L2逻辑回归
-        self.l2.fit(X, y, sample_weight=sample_weight)
-
-        cntOfRow, cntOfCol = self.coef_.shape
-        #权值系数矩阵的行数对应目标值的种类数目
-        for i in range(cntOfRow):
-            for j in range(cntOfCol):
-                coef = self.coef_[i][j]
-                #L1逻辑回归的权值系数不为0
-                if coef != 0:
-                    idx = [j]
-                    #对应在L2逻辑回归中的权值系数
-                    coef1 = self.l2.coef_[i][j]
-                    for k in range(cntOfCol):
-                        coef2 = self.l2.coef_[i][k]
-                        #在L2逻辑回归中，权值系数之差小于设定的阈值，且在L1中对应的权值为0
-                        if abs(coef1-coef2) < self.threshold and j != k and self.coef_[i][k] == 0:
-                            idx.append(k)
-                    #计算这一类特征的权值系数均值
-                    mean = coef / len(idx)
-                    self.coef_[i][idx] = mean
-        return self
-# 带L1和L2惩罚项的逻辑回归作为基模型的特征选择
+#带L1和L2惩罚项的逻辑回归作为基模型的特征选择
 #参数threshold为权值系数之差的阈值
 SelectFromModel(LR(threshold=0.5, C=0.1)).fit_transform(iris.data, iris.target)
 
